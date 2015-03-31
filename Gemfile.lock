@@ -1,0 +1,12 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    colorize (0.7.5)
+    slop (4.0.0)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  colorize
+  slop

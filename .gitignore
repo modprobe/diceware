@@ -1,0 +1,3 @@
+*.list
+.ruby-gemset
+.ruby-version
