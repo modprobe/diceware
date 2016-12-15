@@ -1,3 +1,4 @@
 *.list
 .ruby-gemset
 .ruby-version
+*.sw[a-z]

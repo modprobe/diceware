@@ -12,6 +12,9 @@ def parse_options
   opts.separator "Generator options:"
   opts.integer '-l', '--length', "The number of words of which the final passphrase will consist.", default: 6
   opts.string '-w', '--wordlist', "The path (local or remote) to the wordlist used when generating the passphrase.", default: "http://world.std.com/~reinhold/diceware.wordlist.asc"
+  opts.integer '-C', '--capitalcnt', "The number of capital letters of which the final passphrase will consist.", default: 0
+  opts.string '-s', '--speciallist', "The path (local or remote) to the speciallist used when generating the passphrase.", default: "special.txt"
+  opts.integer '-c', '--specialcnt', "The number of special/number characters of which the final passphrase will consist.", default: 0
   opts.separator ""
   opts.separator "Output options:"
   opts.bool '-p', '--plain', 'disable output formatting'
@@ -36,9 +39,9 @@ def err text
   print '=> '.red.bold, "\n"
 end
 
-def generate_diceware_id
+def generate_diceware_id n_times=5
   output = String.new
-  5.times do
+  n_times.times do
     random_number = SecureRandom.random_number(6) + 1
     output << random_number.to_s
   end
@@ -54,22 +57,44 @@ def parse_wordlist path
   end
   wordpairs = {}
   file.each do |line|
-    md = /([1-6]{5})\s(.+)/.match line
+    md = /^([1-6]+)\s+(.+)/.match line
     if !md.nil?
       wordpairs[md[1]] = md[2]
     end
   end
-  $opts[:verbose] && msg("Parsed #{wordpairs.length} pairs.")
+  msg("Parsed #{wordpairs.length} pairs.") if $opts[:verbose]
   wordpairs
 end
 
-def generate_passphrase wordlist, length
+def generate_passphrase wordlist, speciallist, length, capitalcnt, specialcnt
   words = []
   length.times do
     id = generate_diceware_id
     words << wordlist[id]
+    msg words.join ' ' if $opts[:verbose]
   end
-  words.join " "
+  capitals_left = capitalcnt
+  while capitals_left > 0
+    word_idx = SecureRandom.random_number(length)
+    word = words[word_idx]
+    char_idx = SecureRandom.random_number(word.length)
+    char = word[char_idx]
+    # skip chars that don't change when capitalized, such as special or numbers
+    next if char == char.capitalize
+    words[word_idx] = "#{word[0,char_idx]}#{char.capitalize}#{word[(char_idx+1)..-1] || ''}"
+    msg words.join ' ' if $opts[:verbose]
+    capitals_left -= 1
+  end
+  specialcnt.times do
+    word_idx = SecureRandom.random_number(length)
+    specialid = generate_diceware_id 2
+    special_char = speciallist[specialid]
+    word = words[word_idx]
+    char_idx = SecureRandom.random_number(word.length)
+    words[word_idx] = "#{word[0,char_idx]}#{special_char}#{word[char_idx..-1] || ''}"
+    msg words.join ' ' if $opts[:verbose]
+  end
+  words.join ' '
 end
 
 def output_result phrase
@@ -81,11 +106,13 @@ end
 
 def main
   $opts = parse_options
-  $opts[:verbose] && msg("Parsing wordlist from #{$opts[:wordlist]}...")
+  msg("Parsing wordlist from #{$opts[:wordlist]}...") if $opts[:verbose]
   wordlist = parse_wordlist $opts[:wordlist]
-  passphrase = generate_passphrase wordlist, $opts[:length]
+  msg("Parsing speciallist from #{$opts[:speciallist]}...") if $opts[:verbose]
+  speciallist = parse_wordlist $opts[:speciallist]
+  passphrase = generate_passphrase wordlist, speciallist, $opts[:length], $opts[:capitalcnt], $opts[:specialcnt]
   if !$opts[:plain]
-    $opts[:verbose] && msg("Result:")
+    msg("Result:") if $opts[:verbose]
     output_result passphrase
   else
     print passphrase, "\n"
