@@ -18,6 +18,7 @@ def parse_options
   opts.separator ""
   opts.separator "Output options:"
   opts.bool '-p', '--plain', 'disable output formatting'
+  opts.bool '-e', '--entropy', 'show estimated entropy of password'
   opts.separator ""
   opts.separator "General options:"
   opts.bool '-v', '--verbose', 'enable verbose output'
@@ -116,6 +117,36 @@ def main
     output_result passphrase
   else
     print passphrase, "\n"
+  end
+
+  if $opts[:entropy]
+    entropy_per_word = Math.log2(wordlist.length)
+    entropy_per_special = Math.log2(speciallist.length)
+    passphrase_letters = passphrase.split('').select {|l| l if /[a-zA-Z]/.match(l)}
+    entropy_per_capital = Math.log2(passphrase_letters.length)
+
+    entropy_dice = 0.0
+    entropy_dice += entropy_per_word * $opts[:length]
+    entropy_dice += entropy_per_special * $opts[:specialcnt]
+    entropy_dice += entropy_per_capital * $opts[:capitalcnt]
+
+    possible_lower = (/[a-z]/.match(passphrase) ? 26 : 0)
+    possible_upper = (/[A-Z]/.match(passphrase) ? 26 : 0)
+    possible_special = (/[0-9]/.match(passphrase) ? 10 : 0)
+    possible_number = (/[^a-zA-Z0-9]/.match(passphrase) ? 33 : 0)
+
+    possible_total = possible_lower + possible_upper + possible_special + possible_number
+    entropy_brute = Math.log2(possible_total) * passphrase.length
+
+    if $opts[:verbose]
+      print "entropy_per_word #{entropy_per_word}\n"
+      print "entropy_per_special #{entropy_per_special}\n"
+      print "passphrase_letters #{passphrase_letters}\n"
+      print "entropy_per_capital #{entropy_per_capital}\n"
+      print "possible_total #{possible_total}\n"
+    end
+
+    print "Entropy is ", entropy_dice, " bits given params, or ", entropy_brute, " bits given brute force\n"
   end
 end
 
